@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.identityaccessmanagement.dto.ApiResponse;
 import com.identityaccessmanagement.dto.AuthResponse;
 import com.identityaccessmanagement.dto.LoginRequest;
 import com.identityaccessmanagement.dto.RefreshTokenRequest;
@@ -27,7 +28,7 @@ public class AuthController {
 	private AuthService authService;
 
 	@PostMapping("/register")
-	public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+	public ResponseEntity<ApiResponse> register(@Valid @RequestBody RegisterRequest request) {
 
 		return ResponseEntity.ok(authService.register(request));
 

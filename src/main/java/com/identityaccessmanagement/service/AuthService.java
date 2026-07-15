@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.identityaccessmanagement.config.SecurityConfig;
+import com.identityaccessmanagement.dto.ApiResponse;
 import com.identityaccessmanagement.dto.AuthResponse;
 import com.identityaccessmanagement.dto.LoginRequest;
 import com.identityaccessmanagement.dto.RefreshTokenRequest;
@@ -21,12 +21,15 @@ import com.identityaccessmanagement.entity.PasswordResetToken;
 import com.identityaccessmanagement.entity.RefreshToken;
 import com.identityaccessmanagement.entity.Role;
 import com.identityaccessmanagement.entity.User;
+import com.identityaccessmanagement.exception.ResourceNotFoundException;
 import com.identityaccessmanagement.repository.OtpRepository;
 import com.identityaccessmanagement.repository.PasswordResetTokenRepository;
 import com.identityaccessmanagement.repository.RefreshTokenRepository;
 import com.identityaccessmanagement.repository.RoleRepository;
 import com.identityaccessmanagement.repository.UserRepository;
 import com.identityaccessmanagement.security.CustomUserDetails;
+
+import jakarta.transaction.Transactional;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -61,8 +64,20 @@ public class AuthService {
 	
 	@Autowired
 	private PasswordResetTokenRepository passwordResetTokenRepository;
+	
+	@Autowired
+	private SessionService sessionService;
+	
+	@Autowired
+	private AccountLockService accountLockService;
+	
+	@Autowired
+	private AuditLogService auditLogService;
+	
+	@Autowired
+	private RedisService redisService;
 	 
-	public AuthResponse register(RegisterRequest request) {
+	public ApiResponse register(RegisterRequest request) {
 
 	    if (userRepository.existsByEmail(request.getEmail())) {
 	        throw new RuntimeException("Email already exists");
@@ -93,34 +108,68 @@ public class AuthService {
 	    user.getRoles().add(role);
 
 	    userRepository.save(user);
+	    
+	    auditLogService.logRegistration(user);
 
 	    UserDetails userDetails = new CustomUserDetails(user);
 
-	    String accessToken = jwtService.generateToken(userDetails);
-
-	    return new AuthResponse(
-	            accessToken,
-	            null,
-	            "Bearer",
-	            900000L
-	    );
+	    return new ApiResponse("User registered successfully. Please verify your email.");
 	}
 	
 	public AuthResponse login(LoginRequest request) {
 
-	    authenticationManager.authenticate(
+	   /* authenticationManager.authenticate(
 	            new UsernamePasswordAuthenticationToken(
 	                    request.getEmail(),
 	                    request.getPassword()
 	            )
-	    );
+	    );*/
 
 	    User user = userRepository.findByEmail(request.getEmail())
-	            .orElseThrow(() -> new RuntimeException("User not found"));
+	            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	    
+	    if (Boolean.TRUE.equals(user.getLocked())) {
+	        throw new RuntimeException("Your account is locked. Please contact the administrator.");
+	    }
+	    
+	    try {
+
+	        authenticationManager.authenticate(
+	                new UsernamePasswordAuthenticationToken(
+	                        request.getEmail(),
+	                        request.getPassword()
+	                )
+	        );
+
+	        // Reset failed attempts after successful login
+	        accountLockService.resetFailedAttempts(request.getEmail());
+
+	    } catch (Exception ex) {
+
+	        // Increase failed attempts
+	        accountLockService.increaseFailedAttempts(request.getEmail());
+
+	        throw new RuntimeException("Invalid email or password");
+	    }
 
 	    UserDetails userDetails = new CustomUserDetails(user);
 
 	    String accessToken = jwtService.generateToken(userDetails);
+	    
+	    String refreshToken = UUID.randomUUID().toString();
+
+	    RefreshToken token = new RefreshToken();
+
+	    token.setToken(refreshToken);
+	    token.setUser(user);
+	    token.setExpiryDate(LocalDateTime.now().plusDays(7));
+
+	    refreshTokenRepository.save(token);
+
+	    
+	    sessionService.createSession(user, accessToken);
+	    
+	    auditLogService.logLogin(user);
 
 	    return new AuthResponse(
 	            accessToken,
@@ -167,14 +216,18 @@ public class AuthService {
 	    refreshToken.setRevoked(true);
 
 	    refreshTokenRepository.save(refreshToken);
+	    
 
 	    return "Logout Successful";
 	}
 	
+	@Transactional
 	public String sendOtp(String email) {
 
 	    User user = userRepository.findByEmail(email)
-	            .orElseThrow(() -> new RuntimeException("User not found"));
+	            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	    
+	    otpRepository.deleteByUserAndVerifiedFalse(user);
 
 	    String otpCode = String.valueOf(
 	            100000 + new Random().nextInt(900000));
@@ -188,6 +241,8 @@ public class AuthService {
 
 	    otpRepository.save(otp);
 
+	    redisService.saveOtp(email, otpCode);
+	    
 	    emailService.sendOtpEmail(user.getEmail(), otpCode);
 
 	    return "OTP sent successfully";
@@ -196,8 +251,22 @@ public class AuthService {
 	public String verifyOtp(VerifyOtpRequest request) {
 
 	    User user = userRepository.findByEmail(request.getEmail())
-	            .orElseThrow(() -> new RuntimeException("User not found"));
+	            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	    
+	 // Check Redis first
+	    String cachedOtp = redisService.getOtp(request.getEmail());
 
+	    if (cachedOtp != null) {
+
+	        if (!cachedOtp.equals(request.getOtp())) {
+	            throw new RuntimeException("Invalid OTP");
+	        }
+
+	        redisService.deleteOtp(request.getEmail());
+
+	    } else {
+
+	    // Check Database
 	    Otp otp = otpRepository.findByCode(request.getOtp())
 	            .orElseThrow(() -> new RuntimeException("Invalid OTP"));
 
@@ -216,6 +285,9 @@ public class AuthService {
 	    otp.setVerified(true);
 
 	    otpRepository.save(otp);
+	    }
+	    
+	    auditLogService.logOtpVerification(user);
 
 	    return "OTP verified successfully";
 	}
@@ -223,7 +295,7 @@ public class AuthService {
 	public String verifyEmail(String email) {
 
 	    User user = userRepository.findByEmail(email)
-	            .orElseThrow(() -> new RuntimeException("User not found"));
+	            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
 	    user.setEmailVerified(true);
 
@@ -235,7 +307,7 @@ public class AuthService {
 	public String forgotPassword(String email) {
 
 	    User user = userRepository.findByEmail(email)
-	            .orElseThrow(() -> new RuntimeException("User not found"));
+	            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
 	    String token = UUID.randomUUID().toString();
 
@@ -247,6 +319,8 @@ public class AuthService {
 	    resetToken.setUsed(false);
 
 	    passwordResetTokenRepository.save(resetToken);
+	    
+	    auditLogService.logEmailVerification(user);
 
 	    // Send reset link through email
 	    emailService.sendPasswordResetEmail(user.getEmail(), token);
@@ -274,6 +348,8 @@ public class AuthService {
 	    user.setPassword(passwordEncoder.encode(request.getNewPassword()));
 
 	    userRepository.save(user);
+	    
+	    auditLogService.logPasswordReset(user);
 
 	    resetToken.setUsed(true);
 

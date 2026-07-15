@@ -5,6 +5,7 @@ import com.identityaccessmanagement.dto.UserResponse;
 import com.identityaccessmanagement.dto.UserUpdateRequest;
 import com.identityaccessmanagement.entity.Role;
 import com.identityaccessmanagement.entity.User;
+import com.identityaccessmanagement.exception.ResourceNotFoundException;
 import com.identityaccessmanagement.repository.RoleRepository;
 import com.identityaccessmanagement.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +38,7 @@ public class UserService {
     public UserResponse getUserById(Long id) {
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return mapToResponse(user);
     }
@@ -45,7 +46,7 @@ public class UserService {
     public UserResponse updateUser(Long id, UserUpdateRequest request) {
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
@@ -59,7 +60,7 @@ public class UserService {
     public String deleteUser(Long id) {
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         userRepository.delete(user);
 
@@ -69,7 +70,7 @@ public class UserService {
     public UserResponse assignRole(Long userId, Long roleId) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new RuntimeException("Role not found"));
@@ -84,7 +85,7 @@ public class UserService {
     public UserResponse removeRole(Long userId, Long roleId) {
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new RuntimeException("Role not found"));

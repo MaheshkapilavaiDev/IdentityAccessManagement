@@ -12,21 +12,37 @@ public class AuditLog {
     private Long id;
 
     private String action;
+    
+    private LocalDateTime timestamp;
 
     private String ipAddress;
 
     private String description;
 
     private LocalDateTime createdAt;
+    
+    private String deviceName;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
-    @PrePersist
-    public void prePersist() {
-        createdAt = LocalDateTime.now();
-    }
+
+	public LocalDateTime getTimestamp() {
+		return timestamp;
+	}
+
+	public void setTimestamp(LocalDateTime timestamp) {
+		this.timestamp = timestamp;
+	}
+
+	public String getDeviceName() {
+		return deviceName;
+	}
+
+	public void setDeviceName(String deviceName) {
+		this.deviceName = deviceName;
+	}
 
 	public Long getId() {
 		return id;
