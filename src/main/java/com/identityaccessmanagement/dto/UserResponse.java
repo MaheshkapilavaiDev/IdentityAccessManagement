@@ -3,8 +3,10 @@ package com.identityaccessmanagement.dto;
 import java.util.Set;
 
 public class UserResponse {
+	
+	private Long id;
 
-    private String uuid;
+	private String uuid;
 
     private String firstName;
 
@@ -23,6 +25,14 @@ public class UserResponse {
     private Boolean mfaEnabled;
 
     private Set<String> roles;
+    
+    public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
 
 	public String getUuid() {
 		return uuid;

@@ -1,21 +1,10 @@
 package com.identityaccessmanagement.dto;
 
-import java.util.List;
-
-public class RoleResponse {
-
-    private Long id;
+public class PermissionResponse {
+	
+	private Long id;
     private String name;
     private String description;
-    
-    private List<PermissionResponse> permissions;
-    
-	public List<PermissionResponse> getPermissions() {
-		return permissions;
-	}
-	public void setPermissions(List<PermissionResponse> permissions) {
-		this.permissions = permissions;
-	}
 	public Long getId() {
 		return id;
 	}
@@ -36,4 +25,5 @@ public class RoleResponse {
 	}
     
     
+
 }

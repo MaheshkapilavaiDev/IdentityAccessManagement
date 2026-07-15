@@ -1,8 +1,11 @@
 package com.identityaccessmanagement.service;
 
+import com.identityaccessmanagement.dto.PermissionResponse;
 import com.identityaccessmanagement.dto.RoleRequest;
 import com.identityaccessmanagement.dto.RoleResponse;
+import com.identityaccessmanagement.entity.Permission;
 import com.identityaccessmanagement.entity.Role;
+import com.identityaccessmanagement.repository.PermissionRepository;
 import com.identityaccessmanagement.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +21,9 @@ public class RoleService {
 
 	@Autowired
 	private RoleRepository roleRepository;
+	
+	@Autowired
+	private  PermissionRepository permissionRepository;
 
 	public RoleResponse createRole(RoleRequest request) {
 
@@ -70,11 +76,78 @@ public class RoleService {
 	// Convert Entity to DTO
 	private RoleResponse mapToResponse(Role role) {
 
-		RoleResponse response = new RoleResponse();
-		response.setId(role.getId());
-		response.setName(role.getName());
-		response.setDescription(role.getDescription());
+	    RoleResponse response = new RoleResponse();
 
-		return response;
+	    response.setId(role.getId());
+	    response.setName(role.getName());
+	    response.setDescription(role.getDescription());
+
+	    List<PermissionResponse> permissions = role.getPermissions()
+	            .stream()
+	            .map(permission -> {
+
+	                PermissionResponse permissionResponse = new PermissionResponse();
+
+	                permissionResponse.setId(permission.getId());
+	                permissionResponse.setName(permission.getName());
+	                permissionResponse.setDescription(permission.getDescription());
+
+	                return permissionResponse;
+
+	            }).toList();
+
+	    response.setPermissions(permissions);
+
+	    return response;
+	}
+	
+	public RoleResponse assignPermission(Long roleId, Long permissionId) {
+
+	    Role role = roleRepository.findById(roleId)
+	            .orElseThrow(() -> new RuntimeException("Role not found"));
+
+	    Permission permission = permissionRepository.findById(permissionId)
+	            .orElseThrow(() -> new RuntimeException("Permission not found"));
+
+	    role.getPermissions().add(permission);
+
+	    Role updatedRole = roleRepository.save(role);
+
+	    return mapToResponse(updatedRole);
+	}
+	
+	public List<PermissionResponse> getPermissionsByRole(Long roleId) {
+
+	    Role role = roleRepository.findById(roleId)
+	            .orElseThrow(() -> new RuntimeException("Role not found"));
+
+	    return role.getPermissions()
+	            .stream()
+	            .map(permission -> {
+
+	                PermissionResponse response = new PermissionResponse();
+
+	                response.setId(permission.getId());
+	                response.setName(permission.getName());
+	                response.setDescription(permission.getDescription());
+
+	                return response;
+
+	            }).toList();
+	}
+	
+	public RoleResponse removePermission(Long roleId, Long permissionId) {
+
+	    Role role = roleRepository.findById(roleId)
+	            .orElseThrow(() -> new RuntimeException("Role not found"));
+
+	    Permission permission = permissionRepository.findById(permissionId)
+	            .orElseThrow(() -> new RuntimeException("Permission not found"));
+
+	    role.getPermissions().remove(permission);
+
+	    Role updatedRole = roleRepository.save(role);
+
+	    return mapToResponse(updatedRole);
 	}
 }

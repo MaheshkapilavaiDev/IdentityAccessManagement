@@ -1,5 +1,6 @@
 package com.identityaccessmanagement.controller;
 
+import com.identityaccessmanagement.dto.PermissionResponse;
 import com.identityaccessmanagement.dto.RoleRequest;
 import com.identityaccessmanagement.dto.RoleResponse;
 import com.identityaccessmanagement.service.RoleService;
@@ -54,6 +55,32 @@ public class RoleController {
 
 		RoleResponse role = roleService.getRoleById(id);
 		return ResponseEntity.ok(role);
+	}
+	
+	@PostMapping("/{roleId}/permissions/{permissionId}")
+	public ResponseEntity<RoleResponse> assignPermission(
+	        @PathVariable Long roleId,
+	        @PathVariable Long permissionId) {
+
+	    return ResponseEntity.ok(
+	            roleService.assignPermission(roleId, permissionId));
+	}
+
+	@DeleteMapping("/{roleId}/permissions/{permissionId}")
+	public ResponseEntity<RoleResponse> removePermission(
+	        @PathVariable Long roleId,
+	        @PathVariable Long permissionId) {
+
+	    return ResponseEntity.ok(
+	            roleService.removePermission(roleId, permissionId));
+	}
+
+	@GetMapping("/{roleId}/permissions")
+	public ResponseEntity<List<PermissionResponse>> getPermissionsByRole(
+	        @PathVariable Long roleId) {
+
+	    return ResponseEntity.ok(
+	            roleService.getPermissionsByRole(roleId));
 	}
 
 }
