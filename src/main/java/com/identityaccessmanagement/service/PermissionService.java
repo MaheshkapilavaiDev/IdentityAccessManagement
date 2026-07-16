@@ -6,6 +6,8 @@ import com.identityaccessmanagement.entity.Permission;
 import com.identityaccessmanagement.repository.PermissionRepository;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,6 +17,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PermissionService {
 
+	@Autowired
 	private PermissionRepository permissionRepository;
 
 	public PermissionResponse createPermission(PermissionRequest request) {

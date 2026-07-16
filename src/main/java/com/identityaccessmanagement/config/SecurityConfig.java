@@ -44,15 +44,15 @@ public class SecurityConfig {
 				                "/api/permissions/**",
 				                "/api/audit/**",
 				                "/api/account-lock/**"
-				        ).hasAnyRole("ADMIN","USER")
+				        ).hasAnyRole("ADMIN","USER","SUPER_ADMIN")
 
 				        // User Management
 				        .requestMatchers("/api/users/**")
-				        .hasAnyRole("ADMIN", "USER")
+				        .hasAnyRole("ADMIN", "USER","SUPER_ADMIN")
 
 				        // Session APIs
 				        .requestMatchers("/api/sessions/**")
-				        .hasAnyRole("ADMIN", "USER")
+				        .hasAnyRole("ADMIN", "USER","SUPER_ADMIN")
 
 						.anyRequest().authenticated())
 
